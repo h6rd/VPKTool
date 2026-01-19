@@ -187,11 +187,11 @@ def main():
 
         if vpk_files:
             print("📦 VPK files detected, unpacking...")
-            time.sleep(2)
+            time.sleep(1)
             extract_vpk_files(vpk_files, work_dir)
         elif other_items:
             print("📁 Files detected, compiling to VPK...")
-            time.sleep(2)
+            time.sleep(1)
             compile_to_vpk(other_items, work_dir)
         else:
             print("ℹ️ No VPK files or other files found.")
