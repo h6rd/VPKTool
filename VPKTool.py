@@ -1,4 +1,4 @@
-# pyinstaller --onefile --console --collect-all vpk --collect-all rich --collect-all send2trash --name "VPKTool" --icon=icon.ico main.py
+# pyinstaller --onefile --console --collect-all vpk --collect-all rich --collect-all send2trash --name "VPKTool" --icon=icon.ico VPKTool.py
 # nuitka --onefile --mingw64 --windows-console-mode=force --include-package=vpk --include-package=rich --include-package=send2trash --follow-imports --windows-icon-from-ico=icon.ico --enable-plugin=anti-bloat --assume-yes-for-downloads --show-progress --company-name="Dota2PornFx" --product-name="VPKTool" --file-version=2.0 --output-filename=VPKTool.exe main.py
 
 import sys
@@ -9,6 +9,7 @@ import os
 import subprocess
 import time
 import threading
+import random
 from pathlib import Path
 
 if getattr(sys, 'frozen', False):
@@ -120,8 +121,8 @@ def extract_vpk_files(vpk_files, work_dir):
                             f.write(file_data.read())
                         file_count += 1
                         print(f"  ✅ {file_path}")
-                    except Exception as e:
-                        print(f"  ❌ Extraction error {file_path}: {e}")
+                    except Exception:
+                        pass
                 print(f"  📂 Extracted {file_count} files from {vpk_file.name}")
         except Exception as e:
             print(f"❌ Unpacking error {vpk_file.name}: {e}")
@@ -135,7 +136,8 @@ def compile_to_vpk(items_to_compile, work_dir):
     try:
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
-            compile_dir = temp_path / "pak20_dir"
+            random_num = random.randint(9, 99)
+            compile_dir = temp_path / f"pak{random_num:02d}_dir"
             compile_dir.mkdir()
 
             for item in items_to_compile:
@@ -147,7 +149,7 @@ def compile_to_vpk(items_to_compile, work_dir):
                     shutil.copy2(str(item), str(destination))
                     print(f"  ✅ Added file: {item.name}")
 
-            output_path = work_dir / "pak20_dir.vpk"
+            output_path = work_dir / f"pak{random_num:02d}_dir.vpk"
             print(f"\n💾 Saving VPK to: {output_path.name}")
             newpak = vpk.new(str(output_path))
             newpak.read_dir(str(compile_dir))
@@ -166,8 +168,8 @@ def main():
     print_ascii_art()
 
     if not VPK_AVAILABLE:
-        print("⚠️ Error: vpk module is not installed!")
-        print("👀 Try: pip install vpk")
+        print("Error: vpk module is not installed!")
+        print("Try: pip install vpk")
         sys.exit(1)
 
     work_dir = Path.cwd()
@@ -187,14 +189,15 @@ def main():
 
         if vpk_files:
             print("📦 VPK files detected, unpacking...")
-            time.sleep(1)
+            time.sleep(2)
             extract_vpk_files(vpk_files, work_dir)
         elif other_items:
             print("📁 Files detected, compiling to VPK...")
-            time.sleep(1)
+            time.sleep(2)
             compile_to_vpk(other_items, work_dir)
         else:
             print("ℹ️ No VPK files or other files found.")
+            time.sleep(2)
             sys.exit(0)
 
         if vpk_files:
@@ -202,6 +205,7 @@ def main():
 
     except Exception as e:
         print(f"❌ Error: {e}")
+        time.sleep(5)
         sys.exit(1)
 
 if __name__ == "__main__":
