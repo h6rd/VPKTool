@@ -22,7 +22,7 @@ jobs:
         run: pyinstaller --onefile --console --collect-all vpk --collect-all rich --name "VPKTool" --icon=icon.ico VPKTool.py
 
       - name: Zip
-        run: Compress-Archive -Path dist\VPKTool.exe -DestinationPath VPKTool-Win.zip
+        run: Compress-Archive -Path dist\VPKTool\VPKTool.exe -DestinationPath VPKTool-Win.zip
 
       - uses: actions/upload-artifact@v4
         with:
@@ -45,7 +45,7 @@ jobs:
         run: pyinstaller --onefile --console --collect-all vpk --collect-all rich --name "VPKTool" VPKTool.py
 
       - name: Zip
-        run: zip -j VPKTool-Linux.zip dist/VPKTool
+        run: zip -j VPKTool-Linux.zip dist/VPKTool/VPKTool
 
       - uses: actions/upload-artifact@v4
         with:
