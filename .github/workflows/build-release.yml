@@ -1,114 +1,74 @@
-name: Build and Release
+name: Build & Release
 
 on:
   push:
     tags:
-      - 'v*.*'
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'Release'
-        required: true
-        default: 'v3.1'
-
-permissions:
-  contents: write
+      - 'v*'
 
 jobs:
-  build:
-    strategy:
-      matrix:
-        os: [windows-latest, ubuntu-latest]
-        include:
-          - os: windows-latest
-            output_name: VPKTool.exe
-            artifact_name: VPKTool-Windows
-            zip_name: VPKTool-Windows.zip
-          - os: ubuntu-latest
-            output_name: VPKTool
-            artifact_name: VPKTool-Linux
-            zip_name: VPKTool-Linux.zip
-    
-    runs-on: ${{ matrix.os }}
-    
+  build-windows:
+    runs-on: windows-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install pyinstaller vpk rich send2trash
-    
-    - name: Build with PyInstaller (Windows)
-      if: matrix.os == 'windows-latest'
-      run: |
-        pyinstaller --onefile --console --collect-all vpk --collect-all rich --collect-all send2trash --name "VPKTool" --icon=icon.ico VPKTool.py
-    
-    - name: Build with PyInstaller (Linux)
-      if: matrix.os == 'ubuntu-latest'
-      run: |
-        pyinstaller --onefile --console --collect-all vpk --collect-all rich --collect-all send2trash --name "VPKTool" VPKTool.py
-    
-    - name: Create release folder structure
-      shell: bash
-      run: |
-        mkdir -p release/VPKTool
-        cp dist/${{ matrix.output_name }} release/VPKTool/
-    
-    - name: Create ZIP archive (Windows)
-      if: matrix.os == 'windows-latest'
-      run: |
-        Compress-Archive -Path release/VPKTool -DestinationPath ${{ matrix.zip_name }}
-    
-    - name: Create ZIP archive (Linux)
-      if: matrix.os == 'ubuntu-latest'
-      run: |
-        cd release && zip -r ../${{ matrix.zip_name }} VPKTool
-    
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ matrix.artifact_name }}
-        path: ${{ matrix.zip_name }}
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install pyinstaller vpk rich
+
+      - name: Build
+        run: pyinstaller --onefile --console --collect-all vpk --collect-all rich --name "VPKTool" --icon=icon.ico VPKTool.py
+
+      - name: Zip
+        run: Compress-Archive -Path dist\VPKTool.exe -DestinationPath VPKTool-Win.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: VPKTool-Win.zip
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install pyinstaller vpk rich
+
+      - name: Build
+        run: pyinstaller --onefile --console --collect-all vpk --collect-all rich --name "VPKTool" VPKTool.py
+
+      - name: Zip
+        run: zip -j VPKTool-Linux.zip dist/VPKTool
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-build
+          path: VPKTool-Linux.zip
 
   release:
-    needs: build
+    needs: [build-windows, build-linux]
     runs-on: ubuntu-latest
-    
     permissions:
       contents: write
-    
     steps:
-    - name: Download all artifacts
-      uses: actions/download-artifact@v4
-      with:
-        path: artifacts
-    
-    - name: Get version
-      id: get_version
-      run: |
-        if [ "${{ github.event_name }}" == "push" ]; then
-          echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-        else
-          echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
-        fi
-    
-    - name: Create Release
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: ${{ steps.get_version.outputs.version }}
-        name: Release ${{ steps.get_version.outputs.version }}
-        files: |
-          artifacts/VPKTool-Windows/VPKTool-Windows.zip
-          artifacts/VPKTool-Linux/VPKTool-Linux.zip
-        draft: false
-        prerelease: false
-        generate_release_notes: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-build
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-build
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            VPKTool-Win.zip
+            VPKTool-Linux.zip

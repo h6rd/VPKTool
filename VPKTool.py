@@ -7,7 +7,6 @@ import time
 import threading
 import random
 import vpk
-from send2trash import send2trash
 from rich.console import Console
 from rich.text import Text
 from pathlib import Path
@@ -70,24 +69,14 @@ def print_ascii_art():
     console.print()
 
 def move_to_trash_or_delete(item_path):
-    max_attempts = 5
-    for attempt in range(max_attempts):
-        try:
-            send2trash(str(item_path))
-            return True
-        except Exception as e:
-            if attempt < max_attempts - 1:
-                time.sleep(0.3)
-            else:
-                try:
-                    if item_path.is_dir():
-                        shutil.rmtree(item_path)
-                    else:
-                        item_path.unlink()
-                    return True
-                except Exception:
-                    return False
-    return False
+    try:
+        if item_path.is_dir():
+            shutil.rmtree(item_path)
+        else:
+            item_path.unlink()
+        return True
+    except Exception:
+        return False
 
 def delayed_delete_vpk_files(vpk_file_paths, delay=2):
     def delete_files():
@@ -135,7 +124,10 @@ def compile_to_vpk(items_to_compile, work_dir):
     try:
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
+            BLACKLISTED_NUMS = {66}
             random_num = random.randint(9, 99)
+            while random_num in BLACKLISTED_NUMS:
+                random_num = random.randint(9, 99)
             compile_dir = temp_path / f"pak{random_num:02d}_dir"
             compile_dir.mkdir()
 
