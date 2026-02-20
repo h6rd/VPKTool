@@ -40,3 +40,10 @@ Output will be a randomly named `pakXX_dir.vpk` file.
 - Source files are deleted automatically after a successful operation — make sure you have backups if needed
 
 ---
+
+## Built with
+
+| Library | Purpose |
+|---|---|
+| [vpk](https://pypi.org/project/vpk/) | Reading and writing VPK archives |
+| [rich](https://pypi.org/project/rich/) | Terminal formatting and colored output |
