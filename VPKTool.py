@@ -1,4 +1,5 @@
 import sys
+import re
 import tempfile
 import shutil
 import gc
@@ -68,6 +69,30 @@ def print_ascii_art():
     console.print(Text(lines[-1].center(width), style=WHITE))
     console.print()
 
+SPLIT_PART_RE = re.compile(r'^(.+)_(\d{3})\.vpk$', re.IGNORECASE)
+GARBAGE_SUFFIX_RE = re.compile(r'[^a-zA-Z0-9]$')
+
+def is_split_part_file(item):
+    m = SPLIT_PART_RE.match(item.name)
+    if not m:
+        return False
+    return not item.name.lower().endswith('_dir.vpk')
+
+def find_split_parts(dir_vpk_path):
+    m = re.match(r'^(.+)_dir\.vpk$', dir_vpk_path.name, re.IGNORECASE)
+    if not m:
+        return []
+    base = m.group(1)
+    part_re = re.compile(r'^' + re.escape(base) + r'_(\d{3})\.vpk$', re.IGNORECASE)
+    return [p for p in dir_vpk_path.parent.iterdir() if p.is_file() and part_re.match(p.name)]
+
+def cleanup_garbage_files(work_dir):
+    for root, dirs, files in os.walk(work_dir):
+        for name in files:
+            if GARBAGE_SUFFIX_RE.search(name):
+                file_path = Path(root) / name
+                move_to_trash_or_delete(file_path)
+
 def move_to_trash_or_delete(item_path):
     try:
         if item_path.is_dir():
@@ -97,6 +122,8 @@ def extract_vpk_files(vpk_files, work_dir):
     print(f"{SYMBOLS['search']} Found VPK files to unpack: {len(vpk_files)}")
     vpk_file_paths = [str(vpk_file) for vpk_file in vpk_files]
     for vpk_file in vpk_files:
+        vpk_file_paths.extend(str(p) for p in find_split_parts(vpk_file))
+    for vpk_file in vpk_files:
         print(f"\n{SYMBOLS['folder']} Unpacking: {vpk_file.name}")
         try:
             with vpk.open(str(vpk_file)) as vpk_archive:
@@ -116,10 +143,12 @@ def extract_vpk_files(vpk_files, work_dir):
         except Exception as e:
             print(f"{SYMBOLS['cross']} Unpacking error {vpk_file.name}: {e}")
 
+    cleanup_garbage_files(work_dir)
     gc.collect()
     delayed_delete_vpk_files(vpk_file_paths, delay=2)
 
 def compile_to_vpk(items_to_compile, work_dir):
+    items_to_compile = [item for item in items_to_compile if not GARBAGE_SUFFIX_RE.search(item.name)]
     print(f"{SYMBOLS['package']} Compiling {len(items_to_compile)} items to VPK...")
     try:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -135,6 +164,7 @@ def compile_to_vpk(items_to_compile, work_dir):
                 destination = compile_dir / item.name
                 if item.is_dir():
                     shutil.copytree(str(item), str(destination))
+                    cleanup_garbage_files(destination)
                     print(f"  {SYMBOLS['check']} Added directory: {item.name}")
                 else:
                     shutil.copy2(str(item), str(destination))
@@ -171,6 +201,8 @@ def main():
         for item in work_dir.iterdir():
             if item.name not in protected_files:
                 if item.is_file() and item.name.endswith(".vpk"):
+                    if is_split_part_file(item):
+                        continue
                     vpk_files.append(item)
                 else:
                     other_items.append(item)
